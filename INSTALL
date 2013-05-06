@@ -1,0 +1,29 @@
+Review Board XMPP Notification Extension Installation
+=========================
+
+Install RBXmppNotification
+
+    using pip:
+
+        sudo pip install RBXmppNotification
+
+    using easy_install:
+
+        sudo easy_install RBXmppNotification
+
+    from source:
+
+        git clone https://github.com/iconoeugen/rb-xmpp-notification
+        cd RBXmppNotification
+        sudo python setup.py build install
+
+Restart your web server running review board
+
+Login in to review board as administrator
+    Go to Admin panel -> Extensions
+    In the 'MANAGE EXTENSIONS' page, enable 'RBXmppNotification'
+    Configure 'RBXmppNotification' with the XMPP server and sender details.
+    Click on 'Save'
+
+For installation instructions, please see
+http://www.reviewboard.org/docs/manual/dev/admin/
