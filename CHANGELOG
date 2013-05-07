@@ -1,0 +1,15 @@
+Change log to RBXmppNotification extension for Review Board
+
+Version    Date          Description
+-------    ----------    -----------
+0.2        07.05.2013    Fix to make extension work with Python 2.6 on RHEL 6.3
+
+                         Note: the pyxmpp2 is not compatible with Python 2.6. To get is running
+                         with the older Python version do the next change in the file:
+                            /usr/lib/python2.6/site-packages/pyxmpp2-2.0alpha2-py2.6.egg/pyxmpp2/etree.py
+
+                            <     elif sys.version_info.major < 3:
+                            ---
+                            >     elif sys.version_info[0] < 3:
+
+0.1        06.05.2013    First commit

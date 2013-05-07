@@ -36,14 +36,17 @@ from pyxmpp2.settings import XMPPSettings
 from pyxmpp2.interfaces import EventHandler, event_handler, QUIT
 from pyxmpp2.streamevents import AuthorizedEvent, DisconnectedEvent
 
-def get_base_url():
+def get_review_request_url(review_request):
     """
     Returns site base URL
     """
     current_site = Site.objects.get_current()
     siteconfig = current_site.config.get()
     domain_method = siteconfig.get("site_domain_method")
-    base_url = '%s://%s' % (domain_method, current_site.domain)
+
+    base_url = u"%s://%s%s" % (domain_method, current_site.domain, review_request.get_absolute_url())
+    if sys.version_info[0] < 3:
+        base_url = base_url.decode("utf-8")
     return base_url
 
 def get_users_review_request(review_request):
@@ -68,6 +71,7 @@ def get_users_review_request(review_request):
         if profile.user.is_active:
             users.add(profile.user)
 
+    logging.debug("XMPP notification for review request #%s will be sent to: %s",review_request.get_display_id(), users)
     return users
 
 class XmppHandler(EventHandler):
@@ -84,7 +88,7 @@ class XmppHandler(EventHandler):
     @event_handler(DisconnectedEvent)
     def handle_disconnected(self, event):
         return QUIT
-    
+
     @event_handler()
     def handle_all(self, event):
         logging.info(u"-- {0}".format(event))
@@ -107,11 +111,11 @@ class XmppClient(object):
         if ( not review_request.public ):
             return
 
-        message = u"%s %s published review request #%d: \"%s\"\n%s%s" % (
+        message = u"%s %s published review request #%d: \"%s\"\n%s" % (
             user.first_name, user.last_name,
-            review_request.get_display_id(), 
+            review_request.get_display_id(),
             review_request.summary,
-            get_base_url(),review_request.get_absolute_url())
+            get_review_request_url(review_request))
 
         users = get_users_review_request(review_request)
         # Do not send notification to the user that triggered the update
@@ -127,12 +131,12 @@ class XmppClient(object):
         if ( not review_request.public ):
             return
 
-        message = u"%s %s reopened review request #%d: \"%s\"\n%s%s" % ( 
+        message = u"%s %s reopened review request #%d: \"%s\"\n%s" % (
             user.first_name, user.last_name,
-            review_request.get_display_id(), 
+            review_request.get_display_id(),
             review_request.summary,
-            get_base_url(),review_request.get_absolute_url())
-            
+            get_review_request_url(review_request))
+
         users = get_users_review_request(review_request)
         # Do not send notification to the user that triggered the update
         users.discard(user)
@@ -147,11 +151,11 @@ class XmppClient(object):
         if ( review_request.status == 'D'):
             return
 
-        message = u"%s %s closed review request #%d: \"%s\"\n%s%s" % (
+        message = u"%s %s closed review request #%d: \"%s\"\n%s" % (
             user.first_name, user.last_name,
-            review_request.get_display_id(), 
+            review_request.get_display_id(),
             review_request.summary,
-            get_base_url(),review_request.get_absolute_url())
+            get_review_request_url(review_request))
 
         users = get_users_review_request(review_request)
         # Do not send notification to the user that triggered the update
@@ -166,11 +170,11 @@ class XmppClient(object):
         if not review_request.public:
             return
 
-        message = u"%s %s reviewed request #%d: \"%s\"\n%s%s" % ( 
+        message = u"%s %s reviewed request #%d: \"%s\"\n%s" % (
             user.first_name, user.last_name,
             review_request.get_display_id(), 
             review_request.summary,
-            get_base_url(),review_request.get_absolute_url())
+            get_review_request_url(review_request))
 
         users = get_users_review_request(review_request)
         # Do not send notification to the user that triggered the update
@@ -186,11 +190,11 @@ class XmppClient(object):
         if not review_request.public:
             return
 
-        message = u"%s %s replied review request #%d: \"%s\"\n%%s%s" % ( 
+        message = u"%s %s replied review request #%d: \"%s\"\n%s" % (
             user.first_name, user.last_name,
-            review_request.get_display_id(), 
+            review_request.get_display_id(),
             review_request.summary,
-            get_base_url(), review_request.get_absolute_url())
+            get_review_request_url(review_request))
 
         users = get_users_review_request(review_request)
         # Do not send notification to the user that triggered the update
@@ -212,14 +216,14 @@ class XmppClient(object):
         xmpp_sender_password = self.extension.settings["xmpp_sender_password"]
         xmpp_use_tls = self.extension.settings["xmpp_use_tls"]
 
-        if sys.version_info.major < 3:
+        if sys.version_info[0] < 3:
             xmpp_sender_jid = xmpp_sender_jid.decode("utf-8")
             xmpp_sender_password = xmpp_sender_password.decode("utf-8")
             message = message.decode("utf-8")
 
         try:
             xmpp_sender_jid = JID(xmpp_sender_jid)
-            xmpp_receiver_jid = JID(receiver, xmpp_sender_jid.domain)
+            xmpp_receiver_jid = JID( local_or_jid = receiver, domain = xmpp_sender_jid.domain)
 
             handler = XmppHandler(xmpp_receiver_jid, message)
             settings = XMPPSettings({
@@ -236,6 +240,6 @@ class XmppClient(object):
         except Exception, e:
             logging.error("Error sending XMPP notification with subject '%s' on "
                       ": %s",
-                      "boo",
+                      message,
                       e,
                       exc_info=1)

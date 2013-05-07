@@ -25,7 +25,7 @@
 from setuptools import setup
 
 PACKAGE = "RBXmppNotification"
-VERSION = "0.1"
+VERSION = "0.2"
 
 setup(
     name=PACKAGE,
@@ -34,7 +34,6 @@ setup(
     license="MIT",
     url="https://github.com/iconoeugen/rb-xmpp-notification",
     author="Horatiu Eugen Vlad",
-    platform="noarch",
     packages=["rbxmppnotification"],
     entry_points={
         'reviewboard.extensions':
@@ -48,5 +47,8 @@ setup(
             'templates/rbxmppnotification/*.html',
         ],
     },
-    install_requires=['pyxmpp2>=2.0alpha2']
+    install_requires=[
+            'pyxmpp2>=2.0alpha2',
+            'argparse>=1.2',
+        ],
 )

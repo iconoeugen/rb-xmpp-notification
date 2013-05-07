@@ -81,7 +81,7 @@ class RBXmppNotificationSettingsForm(SettingsForm):
 
     def clean_xmpp_sender_jid(self):
         j = self.cleaned_data['xmpp_sender_jid'].strip()
-        if sys.version_info.major < 3:
+        if sys.version_info[0] < 3:
             j = j.decode("utf-8")
         try:
             jid = JID(j)
