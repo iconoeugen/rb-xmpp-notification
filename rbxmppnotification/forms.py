@@ -54,6 +54,11 @@ class RBXmppNotificationSettingsForm(SettingsForm):
         help_text="The port number where the XMPP server, the default port number is 5222.",
         required=True,
         widget=forms.TextInput(attrs={'size': '5'}))
+    xmpp_timeout = forms.IntegerField(
+        label="Server Connection Timeout",
+        help_text="The number of seconds to way for the XMPP messages to be sent.",
+        required=True,
+        widget=forms.TextInput(attrs={'size': '3'}))
     xmpp_sender_jid = forms.CharField(
         label="Sender XMPP JID",
         help_text=" JID is structured like an email address with a username and a domain name"
@@ -70,6 +75,9 @@ class RBXmppNotificationSettingsForm(SettingsForm):
         required=False)
     xmpp_use_tls = forms.BooleanField(
         label="Use TLS for XMPP authentication",
+        required=False)
+    xmpp_tls_verify_peer = forms.BooleanField(
+        label="Verify peer self signed certificate",
         required=False)
 
     def clean_xmpp_host(self):

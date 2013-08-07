@@ -75,23 +75,28 @@ def get_users_review_request(review_request):
     return users
 
 class XmppHandler(EventHandler):
-    def __init__(self, target_jid, message):
-        self.target_jid = target_jid
+    def __init__(self, target_jids, req_id, message):
+        self.target_jids = target_jids
+        self.req_id = req_id
         self.message = message
 
     @event_handler(AuthorizedEvent)
     def handle_authorized(self, event):
-        message = Message(to_jid = self.target_jid, body = self.message)
-        event.stream.send(message)
+        logging.debug(u"XmppHandler for request #%s authorized: %s", self.req_id, event)
+        for jid in self.target_jids:
+            logging.debug("XmppHandler for request #%s send message to %s", self.req_id, jid.as_string())
+            message = Message(to_jid = jid, body = self.message)
+            event.stream.send(message)
         event.stream.disconnect()
 
     @event_handler(DisconnectedEvent)
     def handle_disconnected(self, event):
+        logging.debug("XmppHandler for request #%s disconnected: %s", self.req_id, event)
         return QUIT
 
     @event_handler()
     def handle_all(self, event):
-        logging.info(u"-- {0}".format(event))
+        logging.info(u"XmppHandler for request #%s: %s", self.req_id, event)
 
 
 class XmppClient(object):
@@ -121,8 +126,7 @@ class XmppClient(object):
         # Do not send notification to the user that triggered the update
         users.discard(user)
 
-        for u in users:
-            self.send_xmpp_message(u, message)
+        self.send_xmpp_message(users, review_request.get_display_id(), message)
 
     def send_review_request_reopened(self, user, review_request):
         # If the review request is not yet public or has been discarded, don't send
@@ -141,8 +145,7 @@ class XmppClient(object):
         # Do not send notification to the user that triggered the update
         users.discard(user)
 
-        for u in users:
-            self.send_xmpp_message(u, message)
+        self.send_xmpp_message(users, review_request.get_display_id(), message)
 
     def send_review_request_closed(self, user, review_request):
         # If the review request is not yet public or has been discarded, don't send
@@ -161,8 +164,7 @@ class XmppClient(object):
         # Do not send notification to the user that triggered the update
         users.discard(user)
 
-        for u in users:
-            self.send_xmpp_message(u, message)
+        self.send_xmpp_message(users, review_request.get_display_id(), message)
 
     def send_review_published(self, user, review):
         review_request = review.review_request
@@ -180,8 +182,7 @@ class XmppClient(object):
         # Do not send notification to the user that triggered the update
         users.discard(user)
 
-        for u in users:
-            self.send_xmpp_message(u, message)
+        self.send_xmpp_message(users, review_request.get_display_id(), message)
 
     def send_reply_published(self, user, reply):
         review = reply.base_reply_to
@@ -200,21 +201,22 @@ class XmppClient(object):
         # Do not send notification to the user that triggered the update
         users.discard(user)
 
-        for u in users:
-            self.send_xmpp_message(u, message)
+        self.send_xmpp_message(users, review_request.get_display_id(), message)
 
-    def send_xmpp_message(self, receiver, message):
+    def send_xmpp_message(self, receivers, req_id, message):
         """
         Formats and sends a XMPP notification with the current domain and review request
         being added to the template context. Returns the resulting message ID.
         """
-        #logging.basicConfig(level = logging.INFO) # change to 'DEBUG' to see more
+        logging.info("XMPP notification send message for request #%s: %s", req_id, message)
 
         xmpp_host = self.extension.settings['xmpp_host']
-        xmpp_port = self.extension.settings['xmpp_port'] 
+        xmpp_port = self.extension.settings['xmpp_port']
+        xmpp_timeout = self.extension.settings['xmpp_timeout']
         xmpp_sender_jid = self.extension.settings["xmpp_sender_jid"]
         xmpp_sender_password = self.extension.settings["xmpp_sender_password"]
         xmpp_use_tls = self.extension.settings["xmpp_use_tls"]
+        xmpp_tls_verify_peer = self.extension.settings["xmpp_tls_verify_peer"]
 
         if sys.version_info[0] < 3:
             xmpp_sender_jid = xmpp_sender_jid.decode("utf-8")
@@ -223,23 +225,26 @@ class XmppClient(object):
 
         try:
             xmpp_sender_jid = JID(xmpp_sender_jid)
-            xmpp_receiver_jid = JID( local_or_jid = receiver, domain = xmpp_sender_jid.domain)
+            receiver_jids = set()
+            for receiver in receivers:
+                receiver_jid = JID( local_or_jid = receiver, domain = xmpp_sender_jid.domain)
+                receiver_jids.add(receiver_jid)
 
-            handler = XmppHandler(xmpp_receiver_jid, message)
+            handler = XmppHandler(receiver_jids, req_id, message)
             settings = XMPPSettings({
                             u"password": xmpp_sender_password,
                             u"starttls": xmpp_use_tls,
-                            u"tls_verify_peer": False,
+                            u"tls_verify_peer": xmpp_tls_verify_peer,
                             u"server" : xmpp_host,
                             u"port": xmpp_port,
+                            u"default_stanza_timeout": xmpp_timeout,
                         })
 
             client = Client(xmpp_sender_jid, [handler], settings)
             client.connect()
-            client.run()
+            client.run( timeout = xmpp_timeout )
         except Exception, e:
-            logging.error("Error sending XMPP notification with subject '%s' on "
-                      ": %s",
-                      message,
+            logging.error("Error sending XMPP notification for request #%s: %s",
+                      req_id,
                       e,
                       exc_info=1)

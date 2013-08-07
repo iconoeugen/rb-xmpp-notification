@@ -2,6 +2,11 @@ Change log to RBXmppNotification extension for Review Board
 
 Version    Date          Description
 -------    ----------    -----------
+0.3        07.08.2013    Send message to all receivers over the same connection
+                         Added configuration for connection timeout
+                         Added configuration for tls verify peer self-signed certificate
+                         Improved logging
+
 0.2        07.05.2013    Fix to make extension work with Python 2.6 on RHEL 6.3
 
                          Note: the pyxmpp2 is not compatible with Python 2.6. To get is running
