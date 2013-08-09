@@ -23,6 +23,8 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
+import logging
+
 from django.conf import settings
 from django.conf.urls.defaults import patterns, include
 from reviewboard.extensions.base import Extension
@@ -48,6 +50,7 @@ class RBXmppNotificationDashboardHook(DashboardHook):
 class RBXmppNotification(Extension):
     is_configurable = True
     def __init__(self, *args, **kwargs):
+        logging.debug(u"RBXmppNotification instantiated")
         super(RBXmppNotification, self).__init__(*args, **kwargs)
         self.url_hook = RBXmppNotificationURLHook(self)
         self.dashboard_hook = RBXmppNotificationDashboardHook(self)

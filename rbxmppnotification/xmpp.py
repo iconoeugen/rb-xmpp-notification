@@ -74,36 +74,82 @@ def get_users_review_request(review_request):
     logging.debug("XMPP notification for review request #%s will be sent to: %s",review_request.get_display_id(), users)
     return users
 
-class XmppHandler(EventHandler):
-    def __init__(self, target_jids, req_id, message):
-        self.target_jids = target_jids
-        self.req_id = req_id
-        self.message = message
+class XmppClient(EventHandler):
+    """
+    A client to manage the XMPP connection and dispatch messages.
+    """
+    NAME = "Review Board XMPP Notification Client"
+    VERSION = 0.1
+
+    def __init__(self, host, port, timeout, from_jid, password, use_tls, tls_verify_peer):
+        self.host = host
+        self.port = port
+        self.timeout = timeout
+        self.from_jid = from_jid
+        self.password = password
+        self.use_tls = use_tls
+        self.tls_verify_peer = tls_verify_peer
+        
+        self.req_id = None
+        self.client = None
+        self.stanzas = None
 
     @event_handler(AuthorizedEvent)
     def handle_authorized(self, event):
-        logging.debug(u"XmppHandler for request #%s authorized: %s", self.req_id, event)
-        for jid in self.target_jids:
-            logging.debug("XmppHandler for request #%s send message to %s", self.req_id, jid.as_string())
-            message = Message(to_jid = jid, body = self.message)
-            event.stream.send(message)
-        event.stream.disconnect()
+        logging.debug(u"XmppClient event handler for request #%s authorized: %s", self.req_id, event)
+        if self.client.stream != event.stream:
+            logging.debug(u"XmppClient event handler ignore event")
+            return
+        for stanza in self.stanzas:
+            logging.debug("XmppHandler for request #%s send message to %s", self.req_id, stanza.as_xml())
+            event.stream.send(stanza)
+        logging.debug(u"XmppHandler disconnecting stream for request #%s", self.req_id)
+        self.client.disconnect()
 
     @event_handler(DisconnectedEvent)
     def handle_disconnected(self, event):
-        logging.debug("XmppHandler for request #%s disconnected: %s", self.req_id, event)
+        logging.debug("XmppClient event handler for request #%s disconnected: %s", self.req_id, event)
+        if self.client.stream != event.stream:
+            logging.debug(u"XmppClient event handler ignore event")
+            return
+        logging.debug(u"XmppClient event handler closing stream for request #%s", self.req_id)
+        self.client.close_stream()
+        self.client = None
         return QUIT
 
     @event_handler()
     def handle_all(self, event):
-        logging.info(u"XmppHandler for request #%s: %s", self.req_id, event)
+        logging.debug(u"XmppClient event handler for request #%s: %s", self.req_id, event)
+
+    def send(self, req_id, stanzas):
+        self.req_id = req_id
+        self.stanzas = stanzas
+        logging.debug(u"XmppClient start sending messages for request #%s", self.req_id)
+        try:
+            settings = XMPPSettings({
+                            u"password": self.password,
+                            u"starttls": self.use_tls,
+                            u"tls_verify_peer": self.tls_verify_peer,
+                            u"server" : self.host,
+                            u"port": self.port,
+                            u"default_stanza_timeout": self.timeout,
+                        })
+
+            self.client = Client(self.from_jid, [self], settings)
+            self.client.connect()
+            self.client.run( timeout = self.timeout )
+        except Exception, e:
+            logging.error("Error sending XMPP notification for request #%s: %s",
+                      req_id,
+                      e,
+                      exc_info=1)
 
 
-class XmppClient(object):
+class XmppSender(object):
     """
-    A client for the XMPP servers. Reports information to the server.
+    A sender for the XMPP messages. Reports information to the server.
     """
-    NAME = "Review Board XMPP Notification Client"
+    NAME = "Review Board XMPP Notification Sender"
     VERSION = 0.1
 
     def __init__(self, extension):
@@ -209,40 +255,29 @@ class XmppClient(object):
         being added to the template context. Returns the resulting message ID.
         """
         logging.info("XMPP notification send message for request #%s: %s", req_id, message)
-
-        xmpp_host = self.extension.settings['xmpp_host']
-        xmpp_port = self.extension.settings['xmpp_port']
-        xmpp_timeout = self.extension.settings['xmpp_timeout']
-        xmpp_sender_jid = self.extension.settings["xmpp_sender_jid"]
-        xmpp_sender_password = self.extension.settings["xmpp_sender_password"]
-        xmpp_use_tls = self.extension.settings["xmpp_use_tls"]
-        xmpp_tls_verify_peer = self.extension.settings["xmpp_tls_verify_peer"]
+        
+        host = self.extension.settings['xmpp_host']
+        port = self.extension.settings['xmpp_port']
+        timeout = self.extension.settings['xmpp_timeout']
+        from_jid = self.extension.settings["xmpp_sender_jid"]
+        password = self.extension.settings["xmpp_sender_password"]
+        use_tls = self.extension.settings["xmpp_use_tls"]
+        tls_verify_peer = self.extension.settings["xmpp_tls_verify_peer"]
 
         if sys.version_info[0] < 3:
-            xmpp_sender_jid = xmpp_sender_jid.decode("utf-8")
-            xmpp_sender_password = xmpp_sender_password.decode("utf-8")
+            from_jid = from_jid.decode("utf-8")
+            password = password.decode("utf-8")
             message = message.decode("utf-8")
 
         try:
-            xmpp_sender_jid = JID(xmpp_sender_jid)
-            receiver_jids = set()
+            from_jid = JID(from_jid)
+            stanzas = set()
             for receiver in receivers:
-                receiver_jid = JID( local_or_jid = receiver, domain = xmpp_sender_jid.domain)
-                receiver_jids.add(receiver_jid)
+                receiver_jid = JID( local_or_jid = receiver, domain = from_jid.domain)
+                stanzas.add(Message(to_jid = receiver_jid, body = message))
 
-            handler = XmppHandler(receiver_jids, req_id, message)
-            settings = XMPPSettings({
-                            u"password": xmpp_sender_password,
-                            u"starttls": xmpp_use_tls,
-                            u"tls_verify_peer": xmpp_tls_verify_peer,
-                            u"server" : xmpp_host,
-                            u"port": xmpp_port,
-                            u"default_stanza_timeout": xmpp_timeout,
-                        })
-
-            client = Client(xmpp_sender_jid, [handler], settings)
-            client.connect()
-            client.run( timeout = xmpp_timeout )
+            client = XmppClient(host, port, timeout, from_jid, password, use_tls, tls_verify_peer)
+            client.send(req_id, stanzas)
         except Exception, e:
             logging.error("Error sending XMPP notification for request #%s: %s",
                       req_id,
