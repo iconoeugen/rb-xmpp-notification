@@ -56,8 +56,8 @@ class RBXmppNotificationSettingsForm(SettingsForm):
         widget=forms.TextInput(attrs={'size': '5'}))
     xmpp_timeout = forms.IntegerField(
         label="Server Connection Timeout",
-        help_text="The number of seconds to way for the XMPP messages to be sent.",
-        required=True,
+        help_text="The number of seconds to wait for the XMPP messages to be sent.",
+        required=False,
         widget=forms.TextInput(attrs={'size': '3'}))
     xmpp_sender_jid = forms.CharField(
         label="Sender XMPP JID",
@@ -79,6 +79,16 @@ class RBXmppNotificationSettingsForm(SettingsForm):
     xmpp_tls_verify_peer = forms.BooleanField(
         label="Verify peer self signed certificate",
         required=False)
+    xmpp_partychat = forms.CharField(
+        label="Partychat room JID",
+        help_text="Send notifications to a partychat room. Multiple rooms can"
+                  " be separated with spaces.",
+        required=False,
+        widget=forms.TextInput(attrs={'size': '50'}))
+    xmpp_partychat_only = forms.BooleanField(
+        label="Send partychat notifications only.",
+        help_text="Do not send notifications to individual users.",
+        required=False)
 
     def clean_xmpp_host(self):
         # Strip whitespaces from the Server address.
@@ -92,10 +102,22 @@ class RBXmppNotificationSettingsForm(SettingsForm):
         if sys.version_info[0] < 3:
             j = j.decode("utf-8")
         try:
-            jid = JID(j)
+            JID(j)
         except JIDError:
             raise forms.ValidationError('Enter a valid JID.')
         return j
+
+    def clean_xmpp_partychat(self):
+        xmpp_partychat = self.cleaned_data['xmpp_partychat']
+        rooms = xmpp_partychat.split()
+        if sys.version_info[0] < 3:
+            rooms = [room.decode("utf-8") for room in rooms]
+        for room in rooms:
+            try:
+                JID(room)
+            except JIDError:
+                raise forms.ValidationError('Enter a valid room JID.')
+        return xmpp_partychat
 
     def save(self):
         super(RBXmppNotificationSettingsForm, self).save()
