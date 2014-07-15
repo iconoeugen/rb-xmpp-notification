@@ -2,6 +2,12 @@ Change log to RBXmppNotification extension for Review Board
 
 Version    Date          Description
 -------    ----------    -----------
+0.5        15.07.2014    neuroid: Fix imports for ReviewBoard 2.0.x and drop unused dashboard hooks
+                         neuroid: Allow sending messages to partychat rooms
+                         
+0.4        09.08.2013    Fix for multiple delivery of same message
+                         Added MANIFEST.in to generate complete sdist
+
 0.3        07.08.2013    Send message to all receivers over the same connection
                          Added configuration for connection timeout
                          Added configuration for tls verify peer self-signed certificate
