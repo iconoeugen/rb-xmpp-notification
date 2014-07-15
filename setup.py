@@ -25,7 +25,7 @@
 from setuptools import setup
 
 PACKAGE = "RBXmppNotification"
-VERSION = "0.4"
+VERSION = "0.5"
 
 setup(
     name=PACKAGE,
