@@ -54,7 +54,7 @@ def get_users_review_request(review_request):
     Returns the set of active users that are interested in the review request
     """
     users = set()
-    for u in review_request.get_participants(): 
+    for u in review_request.get_participants():
         users.add(u)
 
     if review_request.submitter.is_active:
@@ -84,12 +84,12 @@ class XmppClient(EventHandler):
     def __init__(self, host, port, timeout, from_jid, password, use_tls, tls_verify_peer):
         self.host = host
         self.port = port
-        self.timeout = timeout
+        self.timeout = timeout or 5
         self.from_jid = from_jid
         self.password = password
         self.use_tls = use_tls
         self.tls_verify_peer = tls_verify_peer
-        
+
         self.req_id = None
         self.client = None
         self.stanzas = None
@@ -220,7 +220,7 @@ class XmppSender(object):
 
         message = u"%s %s reviewed request #%d: \"%s\"\n%s" % (
             user.first_name, user.last_name,
-            review_request.get_display_id(), 
+            review_request.get_display_id(),
             review_request.summary,
             get_review_request_url(review_request))
 
@@ -255,7 +255,7 @@ class XmppSender(object):
         being added to the template context. Returns the resulting message ID.
         """
         logging.info("XMPP notification send message for request #%s: %s", req_id, message)
-        
+
         host = self.extension.settings['xmpp_host']
         port = self.extension.settings['xmpp_port']
         timeout = self.extension.settings['xmpp_timeout']
@@ -269,13 +269,25 @@ class XmppSender(object):
             password = password.decode("utf-8")
             message = message.decode("utf-8")
 
+        if self.extension.settings["xmpp_partychat_only"]:
+            receivers = set()
+
+        rooms = self.extension.settings["xmpp_partychat"].split()
+        if sys.version_info[0] < 3:
+            rooms = [room.decode("utf-8") for room in rooms]
+        receivers.update(rooms)
+
         try:
             from_jid = JID(from_jid)
             stanzas = set()
             for receiver in receivers:
-                receiver_jid = JID( local_or_jid = receiver, domain = from_jid.domain)
-                stanzas.add(Message(to_jid = receiver_jid, body = message))
-
+                if "@" in str(receiver):
+                    receiver_jid = JID(local_or_jid = receiver)
+                else:
+                    receiver_jid = JID(local_or_jid = receiver,
+                                       domain = from_jid.domain)
+                stanzas.add(Message(to_jid = receiver_jid, body = message,
+                                    stanza_type = "chat"))
             client = XmppClient(host, port, timeout, from_jid, password, use_tls, tls_verify_peer)
             client.send(req_id, stanzas)
         except Exception, e:
