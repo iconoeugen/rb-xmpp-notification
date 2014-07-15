@@ -26,33 +26,16 @@
 import logging
 
 from django.conf import settings
-from django.conf.urls.defaults import patterns, include
+from django.conf.urls import patterns, include
 from reviewboard.extensions.base import Extension
-from reviewboard.extensions.hooks import DashboardHook, URLHook
 
 from rbxmppnotification.register import XmppSignals
 
-class RBXmppNotificationURLHook(URLHook):
-    def __init__(self, extension, *args, **kwargs):
-        pattern = patterns('', (r'^rbxmppnotification/',
-                            include('rbxmppnotification.urls')))
-        super(RBXmppNotificationURLHook, self).__init__(extension, pattern)
-
-
-class RBXmppNotificationDashboardHook(DashboardHook):
-    def __init__(self, extension, *args, **kwargs):
-        entries = [{
-            'label': 'rbxmppnotification',
-            'url': settings.SITE_ROOT + 'rbxmppnotification/',
-        }]
-        super(RBXmppNotificationDashboardHook, self).__init__(extension, entries=entries, *args, **kwargs)
 
 class RBXmppNotification(Extension):
     is_configurable = True
     def __init__(self, *args, **kwargs):
         logging.debug(u"RBXmppNotification instantiated")
         super(RBXmppNotification, self).__init__(*args, **kwargs)
-        self.url_hook = RBXmppNotificationURLHook(self)
-        self.dashboard_hook = RBXmppNotificationDashboardHook(self)
         self.signals = XmppSignals(self) 
         self.signals.register_signals()
