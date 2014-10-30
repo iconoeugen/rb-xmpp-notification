@@ -25,7 +25,10 @@
 
 import logging
 
-from reviewboard.accounts.signals import user_registered
+try:
+    from reviewboard.accounts.signals import user_registered
+except ImportError:
+    from djblets.auth.signals import user_registered
 from reviewboard.reviews.models import ReviewRequest, Review
 from reviewboard.reviews.signals import review_request_published, \
                                         review_published, reply_published, \
