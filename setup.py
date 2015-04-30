@@ -25,17 +25,29 @@
 from setuptools import setup
 
 PACKAGE = "RBXmppNotification"
-VERSION = "0.5"
+VERSION = "0.5.0"
+
+# To use a consistent encoding
+from codecs import open
+from os import path
+
+here = path.abspath(path.dirname(__file__))
+
+# Get the long description from the relevant file
+with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
+    long_description = f.read()
 
 setup(
     name=PACKAGE,
     version=VERSION,
     description="ReviewBoard XMPP Notification Extension",
+    long_description=long_description,
     license="MIT",
     url="https://github.com/iconoeugen/rb-xmpp-notification",
     author="Horatiu Eugen Vlad",
     author_email="horatiuvlad[at]yahoo.com",
     packages=["rbxmppnotification"],
+    keywords='xmpp development review reviewboard',
     entry_points={
         'reviewboard.extensions':
             '%s = rbxmppnotification.extension:RBXmppNotification' % PACKAGE,
